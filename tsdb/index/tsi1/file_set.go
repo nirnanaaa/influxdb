@@ -26,8 +26,8 @@ type FileSet struct {
 // NewFileSet returns a new instance of FileSet.
 func NewFileSet(database string, levels []CompactionLevel, sfile *SeriesFile, files []File) (*FileSet, error) {
 	return &FileSet{
-		levels: levels,
-		sfile * SeriesFile,
+		levels:   levels,
+		sfile:    sfile,
 		files:    files,
 		database: database,
 	}, nil
