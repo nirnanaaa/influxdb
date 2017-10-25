@@ -460,7 +460,7 @@ func (i *Partition) DropMeasurement(name []byte) error {
 				if err := func() error {
 					i.mu.RLock()
 					defer i.mu.RUnlock()
-					return i.activeLogFile.DeleteSeriesID(s.SeriesID)
+					return i.sfile.DeleteSeriesID(s.SeriesID)
 				}(); err != nil {
 					return err
 				}
@@ -519,7 +519,7 @@ func (i *Partition) DropSeries(key []byte) error {
 		mname := []byte(name)
 		seriesID := i.sfile.Offset(mname, tags, nil)
 
-		if err := i.activeLogFile.DeleteSeriesID(seriesID); err != nil {
+		if err := i.sfile.DeleteSeriesID(seriesID); err != nil {
 			return err
 		}
 
