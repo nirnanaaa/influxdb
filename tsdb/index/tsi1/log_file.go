@@ -15,7 +15,6 @@ import (
 
 	"github.com/influxdata/influxdb/pkg/estimator/hll"
 
-	"github.com/influxdata/influxdb/influxql"
 	"github.com/influxdata/influxdb/models"
 	"github.com/influxdata/influxdb/pkg/bloom"
 	"github.com/influxdata/influxdb/pkg/estimator"
@@ -593,7 +592,7 @@ func (f *LogFile) execDeleteMeasurementEntry(e *LogEntry) {
 	mm := f.createMeasurementIfNotExists(e.Name)
 	mm.deleted = true
 	mm.tagSet = make(map[string]logTagKey)
-	mm.series = make(map[uint64]bool)
+	mm.series = make(map[uint64]struct{})
 
 	// Update measurement tombstone sketch.
 	f.mTSketch.Add(e.Name)
@@ -629,6 +628,7 @@ func (f *LogFile) execSeriesEntry(e *LogEntry) {
 	// Read measurement name.
 	name, remainder := ReadSeriesKeyMeasurement(remainder)
 	mm := f.createMeasurementIfNotExists(name)
+	mm.series[e.SeriesID] = struct{}{}
 
 	// Read tag count.
 	tagN, remainder := ReadSeriesKeyTagN(remainder)
@@ -709,7 +709,7 @@ func (f *LogFile) createMeasurementIfNotExists(name []byte) *logMeasurement {
 		mm = &logMeasurement{
 			name:   name,
 			tagSet: make(map[string]logTagKey),
-			series: make(map[uint64]bool),
+			series: make(map[uint64]struct{}),
 		}
 		f.mms[string(name)] = mm
 	}
@@ -877,20 +877,6 @@ type logFileMeasurementCompactInfo struct {
 	size   int64
 }
 
-// MergeSeriesSketches merges the series sketches belonging to this LogFile
-// into the provided sketches.
-//
-// MergeSeriesSketches is safe for concurrent use by multiple goroutines.
-func (f *LogFile) MergeSeriesSketches(sketch, tsketch estimator.Sketch) error {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-
-	if err := sketch.Merge(f.sSketch); err != nil {
-		return err
-	}
-	return tsketch.Merge(f.sTSketch)
-}
-
 // MergeMeasurementsSketches merges the measurement sketches belonging to this
 // LogFile into the provided sketches.
 //
@@ -1028,6 +1014,7 @@ func appendLogEntry(dst []byte, e *LogEntry) []byte {
 	return dst
 }
 
+/*
 type logSerie struct {
 	name []byte
 	tags models.Tags
@@ -1055,6 +1042,7 @@ func (a logSeries) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a logSeries) Less(i, j int) bool {
 	return a[i].Compare(a[j].name, a[j].tags) == -1
 }
+*/
 
 // logMeasurements represents a map of measurement names to measurements.
 type logMeasurements map[string]*logMeasurement
@@ -1073,7 +1061,7 @@ type logMeasurement struct {
 	name    []byte
 	tagSet  map[string]logTagKey
 	deleted bool
-	series  map[uint64]struct{}{}
+	series  map[uint64]struct{}
 }
 
 func (mm *logMeasurement) seriesIDs() []uint64 {
@@ -1147,7 +1135,7 @@ func (tk *logTagKey) TagValueIterator() TagValueIterator {
 func (tk *logTagKey) createTagValueIfNotExists(value []byte) logTagValue {
 	tv, ok := tk.tagValues[string(value)]
 	if !ok {
-		tv = logTagValue{name: value, series: make(map[uint64]bool)}
+		tv = logTagValue{name: value, series: make(map[uint64]struct{})}
 	}
 	return tv
 }
@@ -1162,7 +1150,7 @@ func (a logTagKeySlice) Less(i, j int) bool { return bytes.Compare(a[i].name, a[
 type logTagValue struct {
 	name    []byte
 	deleted bool
-	series  map[uint64]struct{}{}
+	series  map[uint64]struct{}
 }
 
 func (tv *logTagValue) seriesIDs() []uint64 {
@@ -1231,14 +1219,14 @@ type logSeriesIDIterator struct {
 
 // newLogSeriesIDIterator returns a new instance of logSeriesIDIterator.
 // All series are copied to the iterator.
-func newLogSeriesIDIterator(m map[uint64]bool) *logSeriesIDIterator {
+func newLogSeriesIDIterator(m map[uint64]struct{}) *logSeriesIDIterator {
 	if len(m) == 0 {
 		return nil
 	}
 
 	itr := logSeriesIDIterator{series: make([]SeriesIDElem, 0, len(m))}
-	for seriesID, deleted := range m {
-		itr.series = append(itr.series, SeriesIDElem{SeriesID: seriesID, Deleted: deleted})
+	for seriesID := range m {
+		itr.series = append(itr.series, SeriesIDElem{SeriesID: seriesID})
 	}
 	sort.Sort(SeriesIDElems(itr.series))
 
