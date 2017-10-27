@@ -383,6 +383,7 @@ func (f *LogFile) TagValueSeriesIDIterator(name, key, value []byte) SeriesIDIter
 		return nil
 	}
 
+	println("dbg/TVSERIES.ITR")
 	return newLogSeriesIDIterator(tv.series)
 }
 
@@ -738,6 +739,7 @@ func (f *LogFile) MeasurementSeriesIDIterator(name []byte) SeriesIDIterator {
 	if mm == nil || len(mm.series) == 0 {
 		return nil
 	}
+	println("dbg/MMSERIES.ITR")
 	return newLogSeriesIDIterator(mm.series)
 }
 
@@ -1226,6 +1228,7 @@ func newLogSeriesIDIterator(m map[uint64]struct{}) *logSeriesIDIterator {
 
 	itr := logSeriesIDIterator{series: make([]SeriesIDElem, 0, len(m))}
 	for seriesID := range m {
+		println("dbg/series", seriesID)
 		itr.series = append(itr.series, SeriesIDElem{SeriesID: seriesID})
 	}
 	sort.Sort(SeriesIDElems(itr.series))
@@ -1240,6 +1243,7 @@ func (itr *logSeriesIDIterator) Next() SeriesIDElem {
 	}
 	elem := itr.series[0]
 	itr.series = itr.series[1:]
+	println("dbg/LSITR", elem.SeriesID)
 	return elem
 }
 
