@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/influxdata/influxdb/tsdb"
-	"github.com/uber-go/zap"
+	"go.uber.org/zap"
 )
 
 //go:generate protoc -I$GOPATH/src -I. --plugin=protoc-gen-yarpc=$GOPATH/bin/protoc-gen-yarpc --yarpc_out=Mgoogle/protobuf/empty.proto=github.com/gogo/protobuf/types:. --gogofaster_out=Mgoogle/protobuf/empty.proto=github.com/gogo/protobuf/types:. storage.proto predicate.proto
@@ -19,7 +19,7 @@ type rpcService struct {
 	loggingEnabled bool
 
 	Store  *Store
-	Logger zap.Logger
+	Logger *zap.Logger
 }
 
 func (r *rpcService) Capabilities(context.Context, *types.Empty) (*CapabilitiesResponse, error) {
